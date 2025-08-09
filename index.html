@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AES加密解密工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    
+    <!-- 配置Tailwind主题 -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#3B82F6',
+                        secondary: '#10B981',
+                        dark: '#1E293B',
+                        light: '#F8FAFC',
+                        accent: '#8B5CF6'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .content-auto {
+                content-visibility: auto;
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }
+            .transition-all-300 {
+                transition: all 300ms ease-in-out;
+            }
+            .card-hover {
+                @apply hover:shadow-lg hover:-translate-y-1 transition-all duration-300;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800 dark:bg-dark dark:text-gray-100 min-h-screen transition-colors duration-300">
+    <!-- 导航栏 -->
+    <header class="sticky top-0 z-50 bg-white/80 dark:bg-dark/80 backdrop-blur-md shadow-sm transition-all duration-300">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fa fa-lock text-primary text-2xl"></i>
+                <h1 class="text-xl md:text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">AES加密工具</h1>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <button id="theme-toggle" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <i class="fa fa-moon-o dark:hidden text-gray-600"></i>
+                    <i class="fa fa-sun-o hidden dark:inline text-yellow-300"></i>
+                </button>
+                <button id="info-button" class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                    <i class="fa fa-info text-gray-600 dark:text-gray-300"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 max-w-5xl">
+        <!-- 介绍部分 -->
+        <section class="mb-10 text-center">
+            <h2 class="text-[clamp(1.5rem,3vw,2.5rem)] font-bold mb-4 text-shadow">高级加密标准 (AES)</h2>
+            <p class="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                AES是一种广泛使用的对称加密算法，用于保护敏感数据。本工具使用ECB模式进行AES加密和解密操作。
+            </p>
+        </section>
+        
+        <!-- 加密解密选项卡 -->
+        <section class="mb-10">
+            <div class="flex border-b border-gray-200 dark:border-gray-700 mb-6">
+                <button id="encrypt-tab" class="py-3 px-6 font-medium border-b-2 border-primary text-primary">
+                    <i class="fa fa-shield mr-2"></i>加密
+                </button>
+                <button id="decrypt-tab" class="py-3 px-6 font-medium border-b-2 border-transparent text-gray-500 dark:text-gray-400 hover:text-primary dark:hover:text-primary">
+                    <i class="fa fa-unlock mr-2"></i>解密
+                </button>
+            </div>
+            
+            <!-- 加密面板 -->
+            <div id="encrypt-panel" class="space-y-6">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                    <label for="encrypt-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        输入要加密的文本
+                    </label>
+                    <textarea id="encrypt-input" rows="5" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none" placeholder="请输入需要加密的内容..."></textarea>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                    <label for="encrypt-key" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        密钥
+                    </label>
+                    <div class="flex">
+                        <input type="text" id="encrypt-key" class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all" placeholder="输入密钥 (16/24/32字符)">
+                        <button id="generate-key" class="bg-primary hover:bg-primary/90 text-white px-4 py-3 rounded-r-lg transition-colors">
+                            <i class="fa fa-random"></i>
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                        密钥长度应为16 (AES-128)、24 (AES-192) 或 32 (AES-256) 个字符
+                    </p>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                        <label for="encrypt-mode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            加密模式
+                        </label>
+                        <select id="encrypt-mode" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all" disabled>
+                            <option value="ECB">ECB (Electronic Codebook)</option>
+                        </select>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            仅支持ECB模式
+                        </p>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                        <label for="encrypt-padding" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            填充方式
+                        </label>
+                        <select id="encrypt-padding" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                            <option value="Pkcs7">Pkcs7</option>
+                            <option value="AnsiX923">AnsiX923</option>
+                            <option value="Iso10126">Iso10126</option>
+                            <option value="NoPadding">NoPadding</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex justify-center">
+                    <button id="encrypt-button" class="bg-primary hover:bg-primary/90 text-white px-8 py-4 rounded-lg text-lg font-medium shadow-md hover:shadow-lg transition-all flex items-center">
+                        <i class="fa fa-lock mr-2"></i> 执行加密
+                    </button>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                    <label for="encrypt-output" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        加密结果
+                    </label>
+                    <div class="flex">
+                        <textarea id="encrypt-output" rows="5" class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none" placeholder="加密结果将显示在这里..." readonly></textarea>
+                        <button id="copy-encrypt" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-3 rounded-r-lg transition-colors">
+                            <i class="fa fa-copy"></i>
+                        </button>
+                    </div>
+                    <div id="encrypt-copy-alert" class="hidden mt-2 text-sm text-green-600 dark:text-green-400">
+                        <i class="fa fa-check-circle"></i> 已复制到剪贴板
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 解密面板 -->
+            <div id="decrypt-panel" class="space-y-6 hidden">
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                    <label for="decrypt-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        输入要解密的文本
+                    </label>
+                    <textarea id="decrypt-input" rows="5" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none" placeholder="请输入需要解密的内容..."></textarea>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                    <label for="decrypt-key" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        密钥
+                    </label>
+                    <input type="text" id="decrypt-key" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all" placeholder="输入加密时使用的密钥">
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                        <label for="decrypt-mode" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            加密模式
+                        </label>
+                        <select id="decrypt-mode" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all" disabled>
+                            <option value="ECB">ECB (Electronic Codebook)</option>
+                        </select>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">
+                            仅支持ECB模式
+                        </p>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                        <label for="decrypt-padding" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            填充方式
+                        </label>
+                        <select id="decrypt-padding" class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all">
+                            <option value="Pkcs7">Pkcs7</option>
+                            <option value="AnsiX923">AnsiX923</option>
+                            <option value="Iso10126">Iso10126</option>
+                            <option value="NoPadding">NoPadding</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="flex justify-center">
+                    <button id="decrypt-button" class="bg-secondary hover:bg-secondary/90 text-white px-8 py-4 rounded-lg text-lg font-medium shadow-md hover:shadow-lg transition-all flex items-center">
+                        <i class="fa fa-unlock mr-2"></i> 执行解密
+                    </button>
+                </div>
+                
+                <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                    <label for="decrypt-output" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        解密结果
+                    </label>
+                    <div class="flex">
+                        <textarea id="decrypt-output" rows="5" class="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-l-lg bg-gray-50 dark:bg-gray-900 focus:ring-2 focus:ring-primary focus:border-primary transition-all resize-none" placeholder="解密结果将显示在这里..." readonly></textarea>
+                        <button id="copy-decrypt" class="bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-200 px-4 py-3 rounded-r-lg transition-colors">
+                            <i class="fa fa-copy"></i>
+                        </button>
+                    </div>
+                    <div id="decrypt-copy-alert" class="hidden mt-2 text-sm text-green-600 dark:text-green-400">
+                        <i class="fa fa-check-circle"></i> 已复制到剪贴板
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <!-- 信息部分 -->
+        <section class="mb-10">
+            <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 card-hover">
+                <h3 class="text-xl font-semibold mb-4 flex items-center">
+                    <i class="fa fa-info-circle text-primary mr-2"></i> AES-ECB加密说明
+                </h3>
+                <div class="space-y-3 text-gray-600 dark:text-gray-300">
+                    <p>AES (Advanced Encryption Standard) 是一种对称加密算法，本工具使用ECB模式进行加密和解密。</p>
+                    <p>ECB (Electronic Codebook) 是AES的一种基本加密模式，它将明文分成固定大小的块，每个块独立加密。</p>
+                    <p class="text-amber-600 dark:text-amber-400">注意：ECB模式安全性较低，相同的明文块会被加密成相同的密文块，不推荐用于敏感数据加密。</p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                            <h4 class="font-medium text-primary mb-1">AES-128</h4>
+                            <p class="text-sm">使用16个字符的密钥</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                            <h4 class="font-medium text-primary mb-1">AES-192</h4>
+                            <p class="text-sm">使用24个字符的密钥</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700 p-3 rounded-lg">
+                            <h4 class="font-medium text-primary mb-1">AES-256</h4>
+                            <p class="text-sm">使用32个字符的密钥</p>
+                        </div>
+                    </div>
+                    <p class="mt-4 text-sm text-gray-500 dark:text-gray-400">
+                        注意：本工具在您的浏览器本地运行，所有加密解密操作均不会上传到服务器，保障您的数据安全。
+                    </p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- 信息模态框 -->
+    <div id="info-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto m-4 transform transition-all">
+            <div class="p-6 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 class="text-xl font-bold">关于AES-ECB加密</h3>
+                <button id="close-info" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                    <i class="fa fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div>
+                    <h4 class="font-semibold text-lg mb-2 text-primary">什么是ECB模式？</h4>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        ECB（Electronic Codebook，电子密码本）是AES最基本的加密模式。它将明文分成固定大小的块，对每个块独立进行加密。
+                    </p>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg mb-2 text-primary">ECB模式的特点</h4>
+                    <ul class="list-disc pl-5 text-gray-600 dark:text-gray-300 space-y-1">
+                        <li>实现简单，是AES最基本的加密模式</li>
+                        <li>相同的明文块会被加密成相同的密文块</li>
+                        <li>不需要初始化向量(IV)</li>
+                        <li>安全性较低，不推荐用于加密敏感数据</li>
+                        <li>不能隐藏明文的模式和结构</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg mb-2 text-primary">使用建议</h4>
+                    <ul class="list-disc pl-5 text-gray-600 dark:text-gray-300 space-y-1">
+                        <li>使用足够强度的密钥（推荐AES-256）</li>
+                        <li>不要使用弱密钥或容易猜测的密钥</li>
+                        <li>妥善保管您的密钥，避免泄露</li>
+                        <li>不建议用于加密敏感信息或大量数据</li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="font-semibold text-lg mb-2 text-primary">本工具的安全性</h4>
+                    <p class="text-gray-600 dark:text-gray-300">
+                        本工具在您的浏览器本地运行，所有加密和解密操作都在您的设备上完成，不会将您的明文、密文或密钥发送到任何服务器，确保您的数据安全。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知提示 -->
+    <div id="notification" class="fixed bottom-6 right-6 bg-gray-800 text-white px-6 py-3 rounded-lg shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 flex items-center z-40">
+        <i id="notification-icon" class="fa fa-info-circle mr-2"></i>
+        <span id="notification-text">通知内容</span>
+    </div>
+
+    <footer class="bg-white dark:bg-gray-800 shadow-inner py-6 mt-12">
+        <div class="container mx-auto px-4 text-center text-gray-600 dark:text-gray-400">
+            <p>© 2023 AES加密工具 | 保护您的数据安全</p>
+            <p class="text-sm mt-2">本工具仅用于学习和研究目的</p>
+        </div>
+    </footer>
+
+    <script>
+        // DOM元素
+        const encryptTab = document.getElementById('encrypt-tab');
+        const decryptTab = document.getElementById('decrypt-tab');
+        const encryptPanel = document.getElementById('encrypt-panel');
+        const decryptPanel = document.getElementById('decrypt-panel');
+        const generateKeyBtn = document.getElementById('generate-key');
+        const encryptButton = document.getElementById('encrypt-button');
+        const decryptButton = document.getElementById('decrypt-button');
+        const copyEncryptBtn = document.getElementById('copy-encrypt');
+        const copyDecryptBtn = document.getElementById('copy-decrypt');
+        const encryptCopyAlert = document.getElementById('encrypt-copy-alert');
+        const decryptCopyAlert = document.getElementById('decrypt-copy-alert');
+        const themeToggle = document.getElementById('theme-toggle');
+        const infoButton = document.getElementById('info-button');
+        const infoModal = document.getElementById('info-modal');
+        const closeInfoBtn = document.getElementById('close-info');
+        const notification = document.getElementById('notification');
+        const notificationIcon = document.getElementById('notification-icon');
+        const notificationText = document.getElementById('notification-text');
+        
+        // 输入输出元素
+        const encryptInput = document.getElementById('encrypt-input');
+        const encryptKey = document.getElementById('encrypt-key');
+        const encryptMode = document.getElementById('encrypt-mode');
+        const encryptPadding = document.getElementById('encrypt-padding');
+        const encryptOutput = document.getElementById('encrypt-output');
+        
+        const decryptInput = document.getElementById('decrypt-input');
+        const decryptKey = document.getElementById('decrypt-key');
+        const decryptMode = document.getElementById('decrypt-mode');
+        const decryptPadding = document.getElementById('decrypt-padding');
+        const decryptOutput = document.getElementById('decrypt-output');
+        
+        // 选项卡切换
+        encryptTab.addEventListener('click', () => {
+            encryptTab.classList.add('border-primary', 'text-primary');
+            encryptTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            decryptTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            decryptTab.classList.remove('border-primary', 'text-primary');
+            encryptPanel.classList.remove('hidden');
+            decryptPanel.classList.add('hidden');
+        });
+        
+        decryptTab.addEventListener('click', () => {
+            decryptTab.classList.add('border-primary', 'text-primary');
+            decryptTab.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            encryptTab.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            encryptTab.classList.remove('border-primary', 'text-primary');
+            decryptPanel.classList.remove('hidden');
+            encryptPanel.classList.add('hidden');
+        });
+        
+        // 生成随机密钥
+        generateKeyBtn.addEventListener('click', () => {
+            // 默认生成256位密钥（32字符）
+            const keyLength = 32;
+            const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
+            let key = '';
+            
+            for (let i = 0; i < keyLength; i++) {
+                const randomIndex = Math.floor(Math.random() * charset.length);
+                key += charset.charAt(randomIndex);
+            }
+            
+            encryptKey.value = key;
+            showNotification('已生成随机AES-256密钥', 'success');
+        });
+        
+        // 加密操作
+        encryptButton.addEventListener('click', () => {
+            const plaintext = encryptInput.value.trim();
+            const key = encryptKey.value.trim();
+            const mode = encryptMode.value;
+            const padding = encryptPadding.value;
+            
+            // 验证输入
+            if (!plaintext) {
+                showNotification('请输入要加密的文本', 'error');
+                return;
+            }
+            
+            if (!key) {
+                showNotification('请输入密钥', 'error');
+                return;
+            }
+            
+            // 验证密钥长度
+            const keyLengths = [16, 24, 32];
+            if (!keyLengths.includes(key.length)) {
+                showNotification('密钥长度必须是16、24或32个字符', 'error');
+                return;
+            }
+            
+            try {
+                // 转换密钥为WordArray
+                const keyHex = CryptoJS.enc.Utf8.parse(key);
+                
+                // 设置加密选项
+                const options = {
+                    mode: CryptoJS.mode[mode],
+                    padding: CryptoJS.pad[padding]
+                };
+                
+                // 执行加密
+                const ciphertext = CryptoJS.AES.encrypt(plaintext, keyHex, options);
+                
+                // 显示结果
+                encryptOutput.value = ciphertext.toString();
+                showNotification('加密成功', 'success');
+            } catch (error) {
+                console.error('加密错误:', error);
+                showNotification('加密失败: ' + error.message, 'error');
+            }
+        });
+        
+        // 解密操作
+        decryptButton.addEventListener('click', () => {
+            const ciphertext = decryptInput.value.trim();
+            const key = decryptKey.value.trim();
+            const mode = decryptMode.value;
+            const padding = decryptPadding.value;
+            
+            // 验证输入
+            if (!ciphertext) {
+                showNotification('请输入要解密的文本', 'error');
+                return;
+            }
+            
+            if (!key) {
+                showNotification('请输入密钥', 'error');
+                return;
+            }
+            
+            // 验证密钥长度
+            const keyLengths = [16, 24, 32];
+            if (!keyLengths.includes(key.length)) {
+                showNotification('密钥长度必须是16、24或32个字符', 'error');
+                return;
+            }
+            
+            try {
+                // 转换密钥为WordArray
+                const keyHex = CryptoJS.enc.Utf8.parse(key);
+                
+                // 设置解密选项
+                const options = {
+                    mode: CryptoJS.mode[mode],
+                    padding: CryptoJS.pad[padding]
+                };
+                
+                // 执行解密
+                const bytes = CryptoJS.AES.decrypt(ciphertext, keyHex, options);
+                const plaintext = bytes.toString(CryptoJS.enc.Utf8);
+                
+                // 显示结果
+                decryptOutput.value = plaintext;
+                showNotification('解密成功', 'success');
+            } catch (error) {
+                console.error('解密错误:', error);
+                showNotification('解密失败: 可能是密钥或填充方式不正确', 'error');
+            }
+        });
+        
+        // 复制加密结果
+        copyEncryptBtn.addEventListener('click', () => {
+            if (encryptOutput.value) {
+                encryptOutput.select();
+                document.execCommand('copy');
+                
+                // 显示复制成功提示
+                encryptCopyAlert.classList.remove('hidden');
+                setTimeout(() => {
+                    encryptCopyAlert.classList.add('hidden');
+                }, 2000);
+                
+                showNotification('加密结果已复制', 'success');
+            } else {
+                showNotification('没有可复制的内容', 'info');
+            }
+        });
+        
+        // 复制解密结果
+        copyDecryptBtn.addEventListener('click', () => {
+            if (decryptOutput.value) {
+                decryptOutput.select();
+                document.execCommand('copy');
+                
+                // 显示复制成功提示
+                decryptCopyAlert.classList.remove('hidden');
+                setTimeout(() => {
+                    decryptCopyAlert.classList.add('hidden');
+                }, 2000);
+                
+                showNotification('解密结果已复制', 'success');
+            } else {
+                showNotification('没有可复制的内容', 'info');
+            }
+        });
+        
+        // 主题切换
+        themeToggle.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            
+            // 保存主题偏好
+            if (document.documentElement.classList.contains('dark')) {
+                localStorage.setItem('theme', 'dark');
+                showNotification('已切换到深色模式', 'info');
+            } else {
+                localStorage.setItem('theme', 'light');
+                showNotification('已切换到浅色模式', 'info');
+            }
+        });
+        
+        // 信息模态框
+        infoButton.addEventListener('click', () => {
+            infoModal.classList.remove('hidden');
+            // 添加动画效果
+            setTimeout(() => {
+                infoModal.querySelector('div').classList.add('scale-100');
+                infoModal.querySelector('div').classList.remove('scale-95');
+            }, 10);
+        });
+        
+        closeInfoBtn.addEventListener('click', () => {
+            infoModal.classList.add('hidden');
+        });
+        
+        // 点击模态框外部关闭
+        infoModal.addEventListener('click', (e) => {
+            if (e.target === infoModal) {
+                infoModal.classList.add('hidden');
+            }
+        });
+        
+        // 显示通知
+        function showNotification(message, type = 'info') {
+            notificationText.textContent = message;
+            
+            // 设置图标
+            if (type === 'success') {
+                notificationIcon.className = 'fa fa-check-circle mr-2 text-green-400';
+            } else if (type === 'error') {
+                notificationIcon.className = 'fa fa-exclamation-circle mr-2 text-red-400';
+            } else {
+                notificationIcon.className = 'fa fa-info-circle mr-2';
+            }
+            
+            // 显示通知
+            notification.classList.remove('translate-y-20', 'opacity-0');
+            notification.classList.add('translate-y-0', 'opacity-100');
+            
+            // 3秒后隐藏
+            setTimeout(() => {
+                notification.classList.add('translate-y-20', 'opacity-0');
+                notification.classList.remove('translate-y-0', 'opacity-100');
+            }, 3000);
+        }
+        
+        // 初始化主题
+        if (localStorage.getItem('theme') === 'dark' || 
+            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+        
+        // 滚动时改变导航栏样式
+        window.addEventListener('scroll', () => {
+            const header = document.querySelector('header');
+            if (window.scrollY > 10) {
+                header.classList.add('py-2', 'shadow');
+                header.classList.remove('py-4');
+            } else {
+                header.classList.add('py-4');
+                header.classList.remove('py-2', 'shadow');
+            }
+        });
+        
+        // 自动填充解密面板的密钥和模式（与加密面板相同）
+        encryptButton.addEventListener('click', () => {
+            if (encryptOutput.value) {
+                decryptInput.value = encryptOutput.value;
+                decryptKey.value = encryptKey.value;
+                decryptPadding.value = encryptPadding.value;
+            }
+        });
+    </script>
+</body>
+</html>
+    
